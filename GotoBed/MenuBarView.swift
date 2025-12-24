@@ -81,12 +81,25 @@ struct MenuBarView: View {
             Divider()
 
             HStack {
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
+                Button(action: {
+                    powerMonitor.sleepNow()
+                }) {
+                    Image(systemName: "moon.fill")
+                        .font(.title2)
                 }
-                .keyboardShortcut("q", modifiers: .command)
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .buttonStyle(.borderless)
+                .help("Sleep Now")
+
+                Spacer()
+
+                Button(action: {
+                    NSApplication.shared.terminate(nil)
+                }) {
+                    Image(systemName: "power.circle.fill")
+                        .font(.title2)
+                }
+                .buttonStyle(.borderless)
+                .help("Quit")
             }
             .padding(.horizontal)
             .padding(.bottom, 8)

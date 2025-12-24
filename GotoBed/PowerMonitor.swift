@@ -189,4 +189,12 @@ class PowerMonitor: ObservableObject {
             }
         }
     }
+
+    func sleepNow() {
+        let connection = IOPMFindPowerManagement(mach_port_t(MACH_PORT_NULL))
+        if connection != 0 {
+            IOPMSleepSystem(connection)
+            IOServiceClose(connection)
+        }
+    }
 }
