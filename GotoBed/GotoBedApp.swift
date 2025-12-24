@@ -23,7 +23,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var popover: NSPopover?
     var powerMonitor = PowerMonitor()
     
+    static let showPopoverNotification = "com.gotobed.showPopover"
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Check for existing instances
+        let runningApps = NSWorkspace.shared.runningApplications
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        
+        for app in runningApps {
+            if app.bundleIdentifier == Bundle.main.bundleIdentifier && app.processIdentifier != currentPID {
+                // Another instance is already running, send notification to show popover
+                DistributedNotificationCenter.default().postNotificationName(
+                    NSNotification.Name(AppDelegate.showPopoverNotification),
+                    object: nil,
+                    userInfo: nil,
+                    deliverImmediately: true
+                )
+                NSApp.terminate(nil)
+                return
+            }
+        }
+        
+        // Listen for show popover notifications
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(showPopoverFromNotification),
+            name: NSNotification.Name(AppDelegate.showPopoverNotification),
+            object: nil
+        )
+        
         // Create the status item in the menu bar
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
@@ -54,5 +82,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             }
         }
+    }
+    
+    @objc func showPopoverFromNotification() {
+        guard let button = statusItem?.button else { return }
+        guard let popover = popover, !popover.isShown else { return }
+        
+        // Refresh data before showing
+        powerMonitor.fetchAssertions()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 }
