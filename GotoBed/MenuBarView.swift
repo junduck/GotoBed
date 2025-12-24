@@ -10,18 +10,18 @@ import SwiftUI
 struct MenuBarView: View {
     @ObservedObject var powerMonitor: PowerMonitor
     @State private var showSystemDaemons = false
-    
+
     var userApps: [PowerAssertion] {
         powerMonitor.assertions.filter { !$0.isSystemDaemon }
     }
-    
+
     var systemDaemons: [PowerAssertion] {
         powerMonitor.assertions.filter { $0.isSystemDaemon }
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            
+
             if powerMonitor.assertions.isEmpty {
                 Text("Nothing preventing sleep")
                     .font(.subheadline)
@@ -34,21 +34,24 @@ struct MenuBarView: View {
                         if !userApps.isEmpty {
                             ForEach(userApps) { assertion in
                                 AssertionRow(assertion: assertion, powerMonitor: powerMonitor)
-                                
+
                                 if assertion.id != userApps.last?.id || !systemDaemons.isEmpty {
                                     Divider()
                                 }
                             }
                         }
-                        
+
                         // System Daemons Section (Collapsed by default)
                         if !systemDaemons.isEmpty {
                             Button(action: {
                                 showSystemDaemons.toggle()
                             }) {
                                 HStack {
-                                    Image(systemName: showSystemDaemons ? "chevron.down" : "chevron.right")
-                                        .font(.caption)
+                                    Image(
+                                        systemName: showSystemDaemons
+                                            ? "chevron.down" : "chevron.right"
+                                    )
+                                    .font(.caption)
                                     Text("System Daemons (\(systemDaemons.count))")
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
@@ -58,11 +61,11 @@ struct MenuBarView: View {
                                 .padding(.vertical, 4)
                             }
                             .buttonStyle(.plain)
-                            
+
                             if showSystemDaemons {
                                 ForEach(systemDaemons) { assertion in
                                     AssertionRow(assertion: assertion, powerMonitor: powerMonitor)
-                                    
+
                                     if assertion.id != systemDaemons.last?.id {
                                         Divider()
                                     }
@@ -74,9 +77,9 @@ struct MenuBarView: View {
                 }
                 .frame(maxHeight: 400)
             }
-            
+
             Divider()
-            
+
             HStack {
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
@@ -95,11 +98,10 @@ struct MenuBarView: View {
     }
 }
 
-
 struct AssertionRow: View {
     let assertion: PowerAssertion
     let powerMonitor: PowerMonitor
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // Process name header
@@ -110,17 +112,23 @@ struct AssertionRow: View {
                             .font(.caption)
                     }
                     if assertion.belongsToCurrentUser {
+                        Text(assertion.processName)
+                            .font(.system(.body, design: .rounded))
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+
                         Button(action: {
-                            powerMonitor.activateApp(pid: assertion.pid)
+                            print(
+                                "Quit button tapped for PID: \(assertion.pid), app: \(assertion.processName)"
+                            )
+                            powerMonitor.quitApp(pid: assertion.pid)
                         }) {
-                            Text(assertion.processName)
-                                .font(.system(.body, design: .rounded))
-                                .fontWeight(.semibold)
-                                .underline()
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                                .imageScale(.medium)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundColor(.blue)
-                        .help("Click to switch to \(assertion.processName)")
+                        .buttonStyle(.borderless)
+                        .help("Quit \(assertion.processName)")
                     } else {
                         Text(assertion.processName)
                             .font(.system(.body, design: .rounded))
@@ -132,7 +140,7 @@ struct AssertionRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             // Assertions list
             ForEach(assertion.assertions) { detail in
                 HStack(alignment: .top, spacing: 8) {
@@ -160,5 +168,13 @@ struct AssertionRow: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if assertion.belongsToCurrentUser {
+                powerMonitor.activateApp(pid: assertion.pid)
+            }
+        }
+        .help(
+            assertion.belongsToCurrentUser ? "Click to switch to \(assertion.processName)" : "")
     }
 }
