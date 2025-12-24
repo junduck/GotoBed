@@ -21,12 +21,6 @@ struct MenuBarView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sleep Blockers")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.top, 8)
-            
-            Divider()
             
             if powerMonitor.assertions.isEmpty {
                 Text("Nothing preventing sleep")
@@ -88,6 +82,8 @@ struct MenuBarView: View {
                     NSApplication.shared.terminate(nil)
                 }
                 .keyboardShortcut("q", modifiers: .command)
+                .buttonStyle(.borderedProminent)
+                .tint(.red)
             }
             .padding(.horizontal)
             .padding(.bottom, 8)
