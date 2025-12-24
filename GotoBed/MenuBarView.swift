@@ -9,6 +9,15 @@ import SwiftUI
 
 struct MenuBarView: View {
     @ObservedObject var powerMonitor: PowerMonitor
+    @State private var showSystemDaemons = false
+    
+    var userApps: [PowerAssertion] {
+        powerMonitor.assertions.filter { !$0.isSystemDaemon }
+    }
+    
+    var systemDaemons: [PowerAssertion] {
+        powerMonitor.assertions.filter { $0.isSystemDaemon }
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -27,39 +36,43 @@ struct MenuBarView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 12) {
-                        ForEach(powerMonitor.assertions) { assertion in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(assertion.processName)
-                                        .font(.system(.body, design: .rounded))
-                                        .fontWeight(.semibold)
-                                    Spacer()
-                                    Text("PID: \(assertion.pid)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                        // User Apps Section
+                        if !userApps.isEmpty {
+                            ForEach(userApps) { assertion in
+                                AssertionRow(assertion: assertion, powerMonitor: powerMonitor)
                                 
-                                HStack {
-                                    Text(powerMonitor.getAssertionDescription(assertion.assertType))
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                    Spacer()
-                                    Text("⏱️ \(powerMonitor.getDuration(from: assertion.startTime))")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                        .fontWeight(.medium)
+                                if assertion.id != userApps.last?.id || !systemDaemons.isEmpty {
+                                    Divider()
                                 }
-                                
-                                Text(assertion.assertName)
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(2)
                             }
-                            .padding(.horizontal)
-                            .padding(.vertical, 4)
+                        }
+                        
+                        // System Daemons Section (Collapsed by default)
+                        if !systemDaemons.isEmpty {
+                            Button(action: {
+                                showSystemDaemons.toggle()
+                            }) {
+                                HStack {
+                                    Image(systemName: showSystemDaemons ? "chevron.down" : "chevron.right")
+                                        .font(.caption)
+                                    Text("System Daemons (\(systemDaemons.count))")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal)
+                                .padding(.vertical, 4)
+                            }
+                            .buttonStyle(.plain)
                             
-                            if assertion.id != powerMonitor.assertions.last?.id {
-                                Divider()
+                            if showSystemDaemons {
+                                ForEach(systemDaemons) { assertion in
+                                    AssertionRow(assertion: assertion, powerMonitor: powerMonitor)
+                                    
+                                    if assertion.id != systemDaemons.last?.id {
+                                        Divider()
+                                    }
+                                }
                             }
                         }
                     }
@@ -83,5 +96,73 @@ struct MenuBarView: View {
         .onAppear {
             powerMonitor.fetchAssertions()
         }
+    }
+}
+
+
+struct AssertionRow: View {
+    let assertion: PowerAssertion
+    let powerMonitor: PowerMonitor
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            // Process name header
+            HStack {
+                HStack(spacing: 4) {
+                    if assertion.assertions.contains(where: { $0.blocksRestart }) {
+                        Text("🔒")
+                            .font(.caption)
+                    }
+                    if assertion.belongsToCurrentUser {
+                        Button(action: {
+                            powerMonitor.activateApp(pid: assertion.pid)
+                        }) {
+                            Text(assertion.processName)
+                                .font(.system(.body, design: .rounded))
+                                .fontWeight(.semibold)
+                                .underline()
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundColor(.blue)
+                        .help("Click to switch to \(assertion.processName)")
+                    } else {
+                        Text(assertion.processName)
+                            .font(.system(.body, design: .rounded))
+                            .fontWeight(.semibold)
+                    }
+                }
+                Spacer()
+                Text("PID: \(assertion.pid)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            // Assertions list
+            ForEach(assertion.assertions) { detail in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                        .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack {
+                            Text(powerMonitor.getAssertionDescription(detail.assertType))
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                            Spacer()
+                            Text("⏱️ \(powerMonitor.getDuration(from: detail.startTime))")
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                                .fontWeight(.medium)
+                        }
+                        Text(detail.assertName)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.leading, 8)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 4)
     }
 }
